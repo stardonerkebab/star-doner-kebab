@@ -845,18 +845,18 @@ function buildDefaultCustom(name) {
 
   if (isKebab && !isFalafel) {
     note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz. ';
-    note += 'Salsas: Salsa blanca, Salsa roja, Salsa picante. ';
+    note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isFalafel) {
     note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz. ';
-    note += 'Salsas: Salsa blanca, Salsa roja, Salsa picante. ';
+    note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isPlato) {
     note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz, Patatas. ';
-    note += 'Salsas: Salsa blanca, Salsa roja, Salsa picante. ';
+    note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isBox) {
     note += 'Patatas fritas incluidas. ';
-    note += 'Salsas: Salsa blanca, Salsa roja, Salsa picante. ';
+    note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isTapa) {
-    note += 'Salsas: Salsa blanca, Salsa roja, Salsa picante. ';
+    note += 'Salsas: Salsa blanca, Salsa roja. ';
   }
   return note;
 }
@@ -1223,7 +1223,7 @@ const STD_VERDURAS = [
 const STD_SALSAS = [
   {name:'Salsa blanca',  default:true},
   {name:'Salsa roja',    default:true},
-  {name:'Salsa picante', default:true},
+  {name:'Salsa picante', default:false},
   {name:'Sin salsa',     default:false},
 ];
 const SALSA_AMOUNTS = ['Poco','Normal','Mucho'];
