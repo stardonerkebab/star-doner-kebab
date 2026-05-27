@@ -843,17 +843,15 @@ function buildDefaultCustom(name) {
   if (!isFalafel) note += 'Carne: Pollo. ';
   else            note += 'Falafel. ';
 
-  if (isKebab && !isFalafel) {
-    note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz. ';
-    note += 'Salsas: Salsa blanca, Salsa roja. ';
-  } else if (isFalafel) {
-    note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz. ';
+  if (isKebab) {
+    note += 'Con todo (Lechuga, Tomate, Zanahoria, Repollo, Maíz, Cebolla). ';
     note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isPlato) {
-    note += 'Verduras: Lechuga, Cebolla, Tomate, Zanahoria y Repollo, Maiz, Patatas. ';
+    note += 'Ensalada: Lechuga, Tomate, Zanahoria, Repollo, Maíz, Cebolla. ';
+    note += 'Con Patatas y Chips. ';
     note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isBox) {
-    note += 'Patatas fritas incluidas. ';
+    note += 'Con todo. Patatas fritas incluidas. ';
     note += 'Salsas: Salsa blanca, Salsa roja. ';
   } else if (isTapa) {
     note += 'Salsas: Salsa blanca, Salsa roja. ';
@@ -1231,12 +1229,14 @@ const SALSA_AMOUNTS = ['Poco','Normal','Mucho'];
 const CARNE_OPTIONS = ['Pollo','Ternera','Mixto'];
 
 const PLATO_VERDURAS = [
-  {name:'Lechuga',             default:true},
-  {name:'Cebolla',             default:true},
-  {name:'Tomate',              default:true},
-  {name:'Zanahoria y Repollo', default:true},
-  {name:'Maíz',                default:true},
-  {name:'Patatas',             default:true},
+  {name:'Lechuga',   default:true},
+  {name:'Tomate',    default:true},
+  {name:'Zanahoria', default:true},
+  {name:'Repollo',   default:true},
+  {name:'Maíz',      default:true},
+  {name:'Cebolla',   default:true},
+  {name:'Patatas',   default:true},
+  {name:'Chips',     default:true},
 ];
 
 const ARROZ_VERDURAS = [
@@ -1602,14 +1602,16 @@ window.ingConfirm = function() {
   }
 
   let customNote = '';
-  // Always show carne choice
   const carneChoice = window.ingState.carne || 'Pollo';
   customNote += 'Carne: ' + carneChoice + '. ';
-  // Show included verduras
-  if (included.length) customNote += 'Verduras: ' + included.join(', ') + '. ';
-  else if (Object.keys(window.ingState.verduras||{}).length > 0) customNote += 'Sin verduras. ';
-  if (removed.length)    customNote += 'Quitado: ' + removed.join(', ') + '. ';
-  if (added.length)      customNote += 'Añadido: ' + added.join(', ') + '. ';
+  // If nothing removed show "Con todo"
+  if (removed.length === 0 && included.length > 0) {
+    customNote += 'Con todo. ';
+  } else {
+    if (included.length) customNote += 'Verduras: ' + included.join(', ') + '. ';
+    if (removed.length)  customNote += 'Sin: ' + removed.join(', ') + '. ';
+  }
+  if (added.length) customNote += 'Añadido: ' + added.join(', ') + '. ';
   // Show all salsas
   const salsaIncluded = [];
   if (window.ingState.salsas) {
@@ -1675,11 +1677,11 @@ function checkOpenStatus() {
   const bar = document.getElementById('statusBar');
   if (open) {
     bar.className = 'status-bar open';
-    bar.textContent = '🟢 Pedidos abiertos: 13:00–15:30 y 19:00–23:30';
+    bar.textContent = '🟢 Pedidos abiertos: 13:00–15:45 y 19:00–23:45';
   } else {
     bar.className = 'status-bar closed';
     const next = mins < 13*60 ? '13:00' : mins < 19*60 ? '19:00' : '13:00 mañana';
-    bar.textContent = '🔴 Cerrado ahora · Próxima apertura: ' + next;
+    bar.textContent = '🔴 Pedidos cerrados · Próxima apertura: ' + next;
   }
 }
 setInterval(checkOpenStatus, 30000);
