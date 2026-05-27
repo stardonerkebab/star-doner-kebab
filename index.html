@@ -1317,6 +1317,28 @@ window.openIngredients = function(itemName, selectId, type) {
   }
 
   renderSection('ing-verduras', cfg.verduras, 'verduras');
+  // Add "Con todo" quick button above verduras
+  const verdurasSec = document.getElementById('ing-verduras').closest('.ing-section');
+  let conTodoBtn = document.getElementById('con-todo-btn');
+  if (!conTodoBtn) {
+    conTodoBtn = document.createElement('div');
+    conTodoBtn.id = 'con-todo-btn';
+    conTodoBtn.style.cssText = 'margin-bottom:.6rem';
+    verdurasSec.insertBefore(conTodoBtn, document.getElementById('ing-verduras'));
+  }
+  conTodoBtn.innerHTML = `
+    <button id="btn-todo" onclick="setConTodo(true)" 
+      style="flex:1;padding:.5rem 1rem;border:1.5px solid #1D9E75;border-radius:6px;
+      background:#f0fff8;font-size:.82rem;font-weight:700;color:#1D9E75;
+      cursor:pointer;font-family:'Lato',sans-serif;margin-right:.4rem">
+      ✅ Con todo
+    </button>
+    <button id="btn-sinselec" onclick="setConTodo(false)"
+      style="flex:1;padding:.5rem 1rem;border:1.5px solid #E5E2DB;border-radius:6px;
+      background:#fff;font-size:.82rem;font-weight:700;color:var(--mid);
+      cursor:pointer;font-family:'Lato',sans-serif">
+      ✏️ Personalizar
+    </button>`;
   renderSalsas('ing-salsas', cfg.salsas);
   document.getElementById('ing-extras-section').style.display = 'none';
 
@@ -1392,6 +1414,34 @@ function renderSalsas(divId, items) {
   }).join('');
 }
 
+window.setConTodo = function(allIn) {
+  // Toggle all verduras on or off
+  const items = window.ingState.verduras;
+  if (!items) return;
+  Object.keys(items).forEach(name => {
+    window.ingState.verduras[name] = allIn;
+    updateChipVisual('verduras', name, allIn);
+  });
+  // Update button styles
+  const btnTodo = document.getElementById('btn-todo');
+  const btnSin  = document.getElementById('btn-sinselec');
+  if (btnTodo && btnSin) {
+    if (allIn) {
+      btnTodo.style.background = '#1D9E75';
+      btnTodo.style.color = '#fff';
+      btnSin.style.background = '#fff';
+      btnSin.style.color = 'var(--mid)';
+      btnSin.style.borderColor = '#E5E2DB';
+    } else {
+      btnTodo.style.background = '#f0fff8';
+      btnTodo.style.color = '#1D9E75';
+      btnSin.style.background = '#E8F0FE';
+      btnSin.style.color = '#1a73e8';
+      btnSin.style.borderColor = '#1a73e8';
+    }
+  }
+};
+
 window.selectCarne = function(opt) {
   window.ingState.carne = opt;
   CARNE_OPTIONS.forEach(o => {
@@ -1415,8 +1465,18 @@ window.selectCarne = function(opt) {
 };
 
 window.toggleIng = function(section, name) {
-  ingState[section][name] = !ingState[section][name];
-  updateChipVisual(section, name, ingState[section][name]);
+  window.ingState[section][name] = !window.ingState[section][name];
+  updateChipVisual(section, name, window.ingState[section][name]);
+  // Update con todo button
+  if (section === 'verduras') {
+    const allOn = Object.values(window.ingState.verduras).every(v => v);
+    const btnTodo = document.getElementById('btn-todo');
+    const btnSin  = document.getElementById('btn-sinselec');
+    if (btnTodo) {
+      btnTodo.style.background = allOn ? '#1D9E75' : '#f0fff8';
+      btnTodo.style.color = allOn ? '#fff' : '#1D9E75';
+    }
+  }
 };
 
 function applySalsaVisual(name, isOn) {
