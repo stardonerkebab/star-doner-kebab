@@ -52,6 +52,8 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
 .list{background:#fff;border-radius:16px;padding:4px 12px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .row{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid #f4f4f5}
 .row:last-child{border-bottom:0}
+.row.act{background:#fffbf3;border-radius:10px}
+.row.act .n{background:var(--gold);color:#111}
 .n{flex:0 0 auto;min-width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
   border-radius:10px;background:var(--black);color:var(--gold);font-weight:900;font-size:16px}
 .q{flex:0 0 auto;height:34px;display:inline-flex;align-items:center;padding:0 10px;border-radius:10px;
@@ -62,6 +64,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
 .ib{flex:0 0 auto;width:42px;height:42px;border-radius:11px;background:#f4f4f5;font-size:17px;
   display:flex;align-items:center;justify-content:center}
 .vacio{padding:34px 16px;text-align:center;color:var(--mute)}
+.ayuda{margin:-4px 2px 12px;font-size:14px;line-height:1.5;color:var(--mute)}
 
 .acts{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
 .b{flex:1 1 130px;min-height:58px;border-radius:14px;font-weight:800;font-size:17px;
@@ -99,12 +102,17 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   <main>
     <button class="mic" id="mic"><span class="dot"></span><span id="miclbl">Pulsa y habla</span></button>
     <div class="heard" id="heard">Repite en voz alta lo que te pide el cliente.</div>
+    <p class="ayuda">Todo lo que digas va a la línea marcada. Al terminar un pedido pulsa
+    <b>Línea terminada</b>. Para añadir algo a una línea de antes, tócala y sigue hablando.
+    El lápiz ✎ es para escribir a mano y la papelera 🗑 borra esa línea sola.</p>
     <input class="who" id="who" placeholder="Nombre o teléfono (opcional)">
 
     <div class="list" id="list"></div>
 
     <div class="acts">
-      <button class="b sm" id="add">+ Línea</button>
+      <button class="b dark" id="add">✓ Línea terminada · empezar otra</button>
+    </div>
+    <div class="acts">
       <button class="b sm" id="nueva">Empezar de nuevo</button>
     </div>
     <div class="acts">
@@ -214,12 +222,29 @@ function linea(frase){
 }
 
 /* ---------- pantalla ---------- */
+var repintando=false;
+/* mientras se dicta NO se repinta la lista entera: solo cambia el texto de la línea activa */
+function refrescaActual(){
+  var act=lineaActual(); if(!act){ pintar(); return; }
+  var i=S.actual.lines.indexOf(act);
+  var row=document.querySelector('.row[data-i="'+i+'"]');
+  if(!row){ pintar(); return; }
+  var tx=row.querySelector('.tx');
+  var q=row.querySelector('.q');
+  if((act.q>1) !== !!q){ pintar(); return; }   /* aparece o desaparece el ×N: hay que repintar */
+  if(q) q.textContent=act.q+"×";
+  if(tx && document.activeElement!==tx) tx.textContent=act.texto;
+  $("#imprimir").disabled=!S.actual.lines.length;
+}
 function pintar(){
+  repintando=true;
+  setTimeout(function(){ repintando=false; },0);
   var n=S.actual;
   $("#list").innerHTML = n.lines.length ? n.lines.map(function(l,i){
-    return '<div class="row" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
+    return '<div class="row'+(l.id===curId?" act":"")+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
       (l.q>1?'<span class="q">'+l.q+'×</span>':'')+
-      '<div class="tx" contenteditable="true" data-ed="'+i+'">'+esc(l.texto)+'</div>'+
+      '<div class="tx" data-ed="'+i+'">'+esc(l.texto)+'</div>'+
+      '<button class="ib" data-lapiz="'+i+'" title="Escribir a mano">&#9998;</button>'+
       '<button class="ib" data-up="'+i+'" title="Unir con la de arriba">&#8679;</button>'+
       '<button class="ib" data-del="'+i+'">&#128465;</button></div>';
   }).join("") : '<div class="vacio">Todavía no hay nada.<br>Pulsa el botón y habla.</div>';
@@ -263,7 +288,29 @@ function imprimir(t){ $("#imp").textContent=t; window.print(); }
 /* ---------- acciones ---------- */
 $("#list").addEventListener("click",function(e){
   var b, n=S.actual;
-  if((b=e.target.closest("[data-del]"))){ n.lines.splice(+b.dataset.del,1); save(); pintar(); return; }
+  if((b=e.target.closest("[data-del]"))){
+    var fuera=n.lines.splice(+b.dataset.del,1)[0];
+    if(fuera && fuera.id===curId){ curId=null; curTxt=""; }
+    save(); pintar(); pintarOido(); return;
+  }
+  if((b=e.target.closest("[data-lapiz]"))){
+    var fila=b.closest(".row"), campo=fila.querySelector(".tx");
+    campo.setAttribute("contenteditable","true");
+    campo.focus();
+    var rg=document.createRange(); rg.selectNodeContents(campo);
+    var sl=window.getSelection(); sl.removeAllRanges(); sl.addRange(rg);
+    return;
+  }
+  if((b=e.target.closest("[data-ed]"))){
+    var li=n.lines[+b.dataset.ed];
+    if(li){
+      curId=li.id; curTxt=li.texto;
+      document.querySelectorAll(".row").forEach(function(r){ r.classList.remove("act"); });
+      b.closest(".row").classList.add("act");
+      pintarOido();
+    }
+    return;
+  }
   if((b=e.target.closest("[data-up]"))){
     var i=+b.dataset.up;
     if(i>0){ n.lines[i-1].texto=(n.lines[i-1].texto+" "+n.lines[i].texto).trim();
@@ -272,16 +319,23 @@ $("#list").addEventListener("click",function(e){
 });
 $("#list").addEventListener("blur",function(e){
   var el=e.target.closest("[data-ed]"); if(!el) return;
+  if(el.getAttribute("contenteditable")!=="true") return;   /* no se estaba editando */
+  el.removeAttribute("contenteditable");
+  if(repintando || !el.isConnected) return;
   var i=+el.dataset.ed;
-  if(S.actual.lines[i]){ S.actual.lines[i].texto=el.textContent.trim(); save(); }
+  if(S.actual.lines[i]){
+    S.actual.lines[i].texto=el.textContent.trim();
+    if(S.actual.lines[i].id===curId) curTxt=S.actual.lines[i].texto;   /* no pisar su corrección */
+    save();
+  }
 },true);
 $("#who").addEventListener("change",function(){ S.actual.who=$("#who").value.trim(); save(); });
 $("#add").addEventListener("click",function(){
-  S.actual.lines.push({id:uid(),q:1,texto:""}); save(); pintar();
-  var el=document.querySelector(".row:last-child [data-ed]"); if(el) el.focus();
+  nuevaLinea();
+  pintarOido();
 });
 $("#nueva").addEventListener("click",function(){
-  parar(); S.actual={who:"",lines:[]}; oido=""; segIni=0; $("#who").value="";
+  parar(); S.actual={who:"",lines:[]}; oido=""; curId=null; curTxt=""; $("#who").value="";
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
 });
@@ -292,7 +346,7 @@ $("#imprimir").addEventListener("click",function(){
   var v={ id:uid(), no:S.seq++, dia:dia(), at:Date.now(),
           who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(n.lines)) };
   S.viejas.unshift(v); if(S.viejas.length>200) S.viejas.length=200;
-  S.actual={who:"",lines:[]}; oido=""; segIni=0; $("#who").value="";
+  S.actual={who:"",lines:[]}; oido=""; curId=null; curTxt=""; $("#who").value="";
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
   imprimir(textoImpresion(v)); toast("Lista Nº "+v.no+" impresa");
@@ -312,18 +366,42 @@ $("#old").addEventListener("click",function(e){
 /* ---------- escuchar ---------- */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 var rec=null, oyendo=false, oido="", ahora="";
+/* la línea que se está dictando AHORA. El dueño decide cuándo se cierra:
+   todo lo que hable va a esta línea hasta que toque "Línea terminada". */
+var curId=null, curTxt="";
+function lineaActual(){
+  for(var i=0;i<S.actual.lines.length;i++) if(S.actual.lines[i].id===curId) return S.actual.lines[i];
+  return null;
+}
+function vuelcaEnLinea(){
+  var l=linea(curTxt);
+  var act=lineaActual();
+  if(!act){
+    act={ id:uid(), q:1, texto:"" };
+    S.actual.lines.push(act); curId=act.id;
+  }
+  act.q=l.q; act.texto=l.texto;
+}
+function nuevaLinea(){
+  var act=lineaActual();
+  if(act && !act.texto){ curTxt=""; return; }   /* ya hay una vacía esperando */
+  var l={ id:uid(), q:1, texto:"" };
+  S.actual.lines.push(l); curId=l.id; curTxt="";
+  save(); pintar();
+}
 /* dónde empezó esta tanda de escucha: al hablar se rehace SOLO desde aquí,
    así una pausa en medio de la frase no parte el artículo en dos */
-var segIni=0;
 function enMarco(){ try{ return window.self!==window.top; }catch(e){ return true; } }
 function pintarMic(){
   $("#mic").classList.toggle("on",oyendo);
   $("#miclbl").textContent = oyendo ? "Escuchando… toca para parar" : "Pulsa y habla";
 }
 function pintarOido(){
-  $("#heard").innerHTML = (oido?'<b>'+esc(oido)+'</b>':"")+
-    (ahora?' <span class="now">'+esc(ahora)+'</span>':"") ||
-    "Repite en voz alta lo que te pide el cliente.";
+  var n=S.actual.lines.length, act=lineaActual();
+  var cab = act ? '<span class="now">Línea '+(S.actual.lines.indexOf(act)+1)+':</span> ' : "";
+  var cuerpo = (curTxt?'<b>'+esc(curTxt)+'</b>':"")+(ahora?' <span class="now">'+esc(ahora)+'</span>':"");
+  $("#heard").innerHTML = cuerpo ? cab+cuerpo
+    : "Repite en voz alta lo que te pide el cliente.";
 }
 function arrancar(){
   if(oyendo) return;
@@ -342,11 +420,11 @@ function arrancar(){
         if(r.isFinal){
           var f=r[0].transcript.trim();
           if(f){
-            oido += (oido?" ":"")+f;
-            /* se vuelve a partir TODO lo dicho en esta tanda, no solo la última frase */
-            if(S.actual.lines.length>segIni) S.actual.lines.length=segIni;
-            partir(oido).forEach(function(l){ S.actual.lines.push(l); });
-            save(); pintar();
+            curTxt += (curTxt?" ":"")+f;
+            var habia=S.actual.lines.length;
+            vuelcaEnLinea();
+            save();
+            if(S.actual.lines.length!==habia) pintar(); else refrescaActual();
           }
         } else ahora += r[0].transcript;
       }
@@ -365,7 +443,6 @@ function arrancar(){
       if(oyendo){ try{ rec.start(); return; }catch(e){} }   /* sigue escuchando entre frases */
       oyendo=false; pintarMic();
     };
-    segIni=S.actual.lines.length; oido="";   /* tanda nueva: no toca lo ya escrito */
     rec.start(); oyendo=true; pintarMic();
   }catch(e){ oyendo=false; pintarMic(); }
 }
