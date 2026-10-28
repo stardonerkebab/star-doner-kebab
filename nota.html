@@ -61,6 +61,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
 .tx{flex:1;min-width:0;padding:5px 7px;border-radius:9px;outline:none;word-break:break-word;
   -webkit-user-select:text;user-select:text}
 .tx:focus{background:#fffbf3;box-shadow:0 0 0 2px var(--gold)}
+.dud{color:#a1a1aa;text-decoration:underline dotted #d4d4d8;text-underline-offset:3px}
 .ib{flex:0 0 auto;width:42px;height:42px;border-radius:11px;background:#f4f4f5;font-size:17px;
   display:flex;align-items:center;justify-content:center}
 .vacio{padding:34px 16px;text-align:center;color:var(--mute)}
@@ -221,6 +222,132 @@ function linea(frase){
   return { id:uid(), q:q, texto: t?t.charAt(0).toUpperCase()+t.slice(1):"" };
 }
 
+/* ---------- SOLO LAS PALABRAS QUE USAMOS ----------
+   Lo que oye el micrófono se corrige contra las palabras de la carta del TPV.
+   Si una palabra no se parece a ninguna, se escribe igual pero EN GRIS, para verla. */
+var TILDE={ maiz:"maíz", limon:"limón", menu:"menú", pequena:"pequeña", tambien:"también",
+            ketchup:"kétchup", mas:"más" };
+var PALABRAS=(
+ "rollo rollos kebab kebabs pita pitas pan panes falafel falafeles durum durums xxl "+
+ "plato platos combinado combinados arroz box doner tapa tapas patata patatas fritas "+
+ "menu grande pequena normal solo sola media mitad racion "+
+ "carne carnes pollo ternera mixto mixta hecha hecho hecha poco extra "+
+ "salsa salsas blanca blanco picante roja rojo ketchup mayonesa "+
+ "verdura verduras ensalada lechuga tomate cebolla col maiz zanahoria queso "+
+ "poca poco poquita poquito mucha mucho sin con mas menos y e de del la el los las "+
+ "un una uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce "+
+ "quince veinte para en a al sobre tambien muy todo toda nada aparte "+
+ "bebida bebidas agua aguas coca cola zero fanta naranja limon mandarina 7up aquarius "+
+ "don simon lipton powerking cerveza cervezas"
+).split(" ");
+var FRASES=["pan de pita","pan de pita xxl","pan de pita falafel","rollo kebab","rollo kebab xxl",
+ "rollo falafel","plato combinado","arroz con carne","box doner","patatas fritas","tapa pequena",
+ "coca cola","coca cola zero","coca cola zero zero","fanta naranja","fanta limon",
+ "aquarius limon","aquarius naranja","don simon","don simon naranja","don simon mandarina",
+ "salsa blanca","sin carne","sin salsa","sin verdura","sin bebida","sin queso","sin cebolla",
+ "extra carne","carne sobre patatas","poca verdura","mucha verdura","con patatas","con bebida"];
+/* lo que el micrófono suele entender mal, ya visto en la tablet */
+var ALIAS1={ noria:"zanahoria", sanoria:"zanahoria", zanoria:"zanahoria", sanahoria:"zanahoria",
+ zanahorias:"zanahoria", sanoria2:"zanahoria",
+ pampita:"pan de pita", panpita:"pan de pita", pampitas:"pan de pita", pampa:"pan de pita",
+ cocacola:"coca cola", colacola:"coca cola", cocacolas:"coca cola",
+ kebap:"kebab", kebar:"kebab", quebab:"kebab", kevab:"kebab", kepab:"kebab",
+ sevenup:"7up", lechugama:"lechuga maíz", aquarade:"aquarius", acuarius:"aquarius",
+ powerkin:"powerking", donsimon:"don simon", mais:"maíz", maices:"maíz",
+ picantito:"poco picante", picanton:"mucho picante" };
+var ALIASF={ "pan pita":"pan de pita", "siete up":"7up", "seven up":"7up",
+ "power king":"powerking", "don simo":"don simon", "su noria":"zanahoria",
+ "la noria":"zanahoria", "coca light":"coca cola zero", "sin picante":"sin picante" };
+var VOC={}; PALABRAS.forEach(function(w){ VOC[w]=TILDE[w]||w; });
+var FRA={}; FRASES.forEach(function(f){
+  FRA[f]=f.split(" ").map(function(w){ return TILDE[w]||w; }).join(" "); });
+/* cómo suena en español: así "sebolla" encuentra "cebolla" y "kebap" encuentra "kebab" */
+function fon(s){
+  s=norm(s);
+  return s.replace(/ch/g,"X").replace(/ll/g,"i").replace(/qu/g,"k").replace(/gu([ei])/g,"g$1")
+    .replace(/g([ei])/g,"j$1").replace(/c([eiy])/g,"s$1").replace(/c/g,"k").replace(/z/g,"s")
+    .replace(/v/g,"b").replace(/w/g,"b").replace(/h/g,"").replace(/y/g,"i")
+    .replace(/(.)\1+/g,"$1").replace(/s$/,"");
+}
+function dist(a,b){
+  var m=a.length,n=b.length,d=[],i,j;
+  for(i=0;i<=m;i++){ d[i]=[]; d[i][0]=i; }
+  for(j=0;j<=n;j++) d[0][j]=j;
+  for(i=1;i<=m;i++) for(j=1;j<=n;j++)
+    d[i][j]=Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+(a.charAt(i-1)===b.charAt(j-1)?0:1));
+  return d[m][n];
+}
+var PFON=PALABRAS.map(function(w){ return { k:fon(w), w:VOC[w] }; });
+
+function parecida(n){
+  var k=fon(n), mejor=null, md=99;
+  for(var i=0;i<PFON.length;i++){
+    var d=dist(k,PFON[i].k);
+    if(d<md){ md=d; mejor=PFON[i].w; }
+  }
+  return (mejor && md<=Math.max(1,Math.floor(k.length/3))) ? mejor : null;
+}
+/* palabras de hablar normal: se dejan como están y no se pintan en gris */
+var PASA={};
+("dame ponme pon pones deme pongame quiero queria querria pues vale mira oye luego despues "+
+ "otro otra otros otras que sera ver hola buenas porfavor por favor gracias eso esto ese esa "+
+ "me le les su sus mi mis no si es son hay ponle pongo lleva llevar").split(" ")
+ .forEach(function(w){ PASA[w]=1; });
+/* partir una palabra pegada en dos de la carta: solo si las DOS son exactas */
+function parte2(n){
+  for(var i=3;i<=n.length-3;i++){
+    var a=VOC[n.slice(0,i)], b=VOC[n.slice(i)];
+    if(a&&b) return a+" "+b;
+  }
+  return null;
+}
+function corrigeUna(p){
+  var n=norm(p);
+  if(!n || /^\d+$/.test(n)) return p;
+  if(ALIAS1[n]) return ALIAS1[n];
+  if(VOC[n]) return VOC[n];
+  if(PASA[n] || n.length<=2) return p;
+  return parecida(n) || parte2(n) || p;
+}
+function corrige(texto){
+  var w=String(texto||"").trim().split(/\s+/).filter(Boolean), out=[], i=0;
+  while(i<w.length){
+    var puesto=false;
+    for(var c=4;c>=2;c--){
+      if(i+c>w.length) continue;
+      var k=norm(w.slice(i,i+c).join(" "));
+      var hit=ALIASF[k]||FRA[k];
+      if(hit){ out.push(hit); i+=c; puesto=true; break; }
+    }
+    if(puesto) continue;
+    out.push(corrigeUna(w[i])); i++;
+  }
+  /* ya corregidas una a una, se juntan las que forman un nombre de la carta */
+  w=out.join(" ").split(/\s+/); out=[]; i=0;
+  while(i<w.length){
+    var junto=false;
+    for(var c2=4;c2>=2;c2--){
+      if(i+c2>w.length) continue;
+      var k2=norm(w.slice(i,i+c2).join(" "));
+      if(FRA[k2]){ out.push(FRA[k2]); i+=c2; junto=true; break; }
+    }
+    if(junto) continue;
+    out.push(w[i]); i++;
+  }
+  return out.join(" ");
+}
+function conocida(p){
+  var n=norm(p);
+  return !n || /^\d+$/.test(n) || !!VOC[n] || !!ALIAS1[n] || !!PASA[n];
+}
+/* escribe la línea; lo que no es de la carta sale en gris */
+function marca(t){
+  return String(t||"").split(/(\s+)/).map(function(p){
+    if(!p || /^\s+$/.test(p)) return esc(p);
+    return conocida(p) ? esc(p) : '<span class="dud">'+esc(p)+'</span>';
+  }).join("");
+}
+
 /* ---------- pantalla ---------- */
 var repintando=false;
 /* mientras se dicta NO se repinta la lista entera: solo cambia el texto de la línea activa */
@@ -233,7 +360,7 @@ function refrescaActual(){
   var q=row.querySelector('.q');
   if((act.q>1) !== !!q){ pintar(); return; }   /* aparece o desaparece el ×N: hay que repintar */
   if(q) q.textContent=act.q+"×";
-  if(tx && document.activeElement!==tx) tx.textContent=act.texto;
+  if(tx && document.activeElement!==tx) tx.innerHTML=marca(act.texto);
   $("#imprimir").disabled=!S.actual.lines.length;
 }
 function pintar(){
@@ -243,7 +370,7 @@ function pintar(){
   $("#list").innerHTML = n.lines.length ? n.lines.map(function(l,i){
     return '<div class="row'+(l.id===curId?" act":"")+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
       (l.q>1?'<span class="q">'+l.q+'×</span>':'')+
-      '<div class="tx" data-ed="'+i+'">'+esc(l.texto)+'</div>'+
+      '<div class="tx" data-ed="'+i+'">'+marca(l.texto)+'</div>'+
       '<button class="ib" data-lapiz="'+i+'" title="Escribir a mano">&#9998;</button>'+
       '<button class="ib" data-up="'+i+'" title="Unir con la de arriba">&#8679;</button>'+
       '<button class="ib" data-del="'+i+'">&#128465;</button></div>';
@@ -341,10 +468,12 @@ $("#nueva").addEventListener("click",function(){
 });
 $("#imprimir").addEventListener("click",function(){
   parar();
-  var n=S.actual; if(!n.lines.length) return;
+  var n=S.actual;
+  var utiles=n.lines.filter(function(l){ return l.texto.trim(); });
+  if(!utiles.length) return;
   if(S.dia!==dia()){ S.dia=dia(); S.seq=1; }
   var v={ id:uid(), no:S.seq++, dia:dia(), at:Date.now(),
-          who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(n.lines)) };
+          who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(utiles)) };
   S.viejas.unshift(v); if(S.viejas.length>200) S.viejas.length=200;
   S.actual={who:"",lines:[]}; oido=""; curId=null; curTxt=""; $("#who").value="";
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
@@ -399,7 +528,7 @@ function pintarMic(){
 function pintarOido(){
   var n=S.actual.lines.length, act=lineaActual();
   var cab = act ? '<span class="now">Línea '+(S.actual.lines.indexOf(act)+1)+':</span> ' : "";
-  var cuerpo = (curTxt?'<b>'+esc(curTxt)+'</b>':"")+(ahora?' <span class="now">'+esc(ahora)+'</span>':"");
+  var cuerpo = (curTxt?'<b>'+marca(curTxt)+'</b>':"")+(ahora?' <span class="now">'+esc(ahora)+'</span>':"");
   $("#heard").innerHTML = cuerpo ? cab+cuerpo
     : "Repite en voz alta lo que te pide el cliente.";
 }
@@ -420,7 +549,7 @@ function arrancar(){
         if(r.isFinal){
           var f=r[0].transcript.trim();
           if(f){
-            curTxt += (curTxt?" ":"")+f;
+            curTxt = corrige(curTxt+(curTxt?" ":"")+f);
             var habia=S.actual.lines.length;
             vuelcaEnLinea();
             save();
