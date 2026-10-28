@@ -235,6 +235,22 @@ body.warn #app{padding-top:66px}
 .vrow .a em{color:var(--gold);font-style:normal;font-weight:700}
 .vrow .cst{font-size:12.5px;color:var(--mute);line-height:1.45;margin-top:2px}
 .vrow .b{font-weight:800;font-variant-numeric:tabular-nums}
+.nhead{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.nmic{width:72px;height:72px;flex:0 0 auto;border-radius:50%;background:var(--gold);color:#111;
+  font-size:30px;display:flex;align-items:center;justify-content:center;border:3px solid transparent}
+.nmic.on{background:var(--red);color:#fff;border-color:#fff;animation:pulse 1.1s infinite}
+.nfields{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.nfields input{flex:1 1 150px;min-width:0;padding:11px 13px;border:1px solid var(--line);
+  border-radius:11px;background:#fff;min-height:46px}
+.nrow{display:flex;align-items:flex-start;gap:8px;padding:9px 2px;border-bottom:1px solid #f4f4f5}
+.nrow:last-child{border-bottom:0}
+.nno{flex:0 0 auto;min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:8px;background:var(--black);color:var(--gold);font-weight:900;font-size:14px}
+.nq{flex:0 0 auto;height:30px;display:inline-flex;align-items:center;padding:0 8px;border-radius:8px;
+  background:var(--gold);color:#111;font-weight:900;font-size:13px}
+.ntx{flex:1;min-width:0;font-size:16px;line-height:1.45;padding:4px 6px;border-radius:8px;
+  outline:none;word-break:break-word}
+.ntx:focus{background:#fffbf3;box-shadow:0 0 0 2px var(--gold)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--black);color:var(--gold);
   padding:12px 20px;border-radius:999px;font-weight:800;z-index:99;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 
@@ -277,6 +293,7 @@ body.warn #app{padding-top:66px}
       <button data-view="pos" class="on">Pedido</button>
       <button data-view="tables">Mesas</button>
       <button data-view="history">Ventas</button>
+      <button data-view="nota">Teléfono</button>
       <button data-view="settings">Ajustes</button>
     </div>
     <div class="spacer"></div>
@@ -349,6 +366,41 @@ body.warn #app{padding-top:66px}
         </div>
         <div class="list" id="hlist"></div>
         <p class="sub" id="h-count" style="margin:10px 2px 0"></p>
+      </div>
+    </section>
+
+    <section class="view" id="v-nota">
+      <div class="pad">
+        <div class="nhead">
+          <button class="nmic" id="n-mic">&#127908;</button>
+          <div>
+            <h2 style="margin:0">Pedido por teléfono</h2>
+            <p class="sub" style="margin:2px 0 0">Repite el pedido en voz alta y lo escribo numerado.</p>
+          </div>
+        </div>
+        <div class="vtext" id="n-heard"></div>
+
+        <div class="nfields">
+          <input id="n-name" placeholder="Nombre del cliente">
+          <input id="n-phone" placeholder="Teléfono">
+          <input id="n-time" placeholder="Hora de recogida">
+        </div>
+
+        <div class="card" style="padding:6px 10px"><div id="nlist"></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+          <button class="btn sm" style="flex:0 0 auto;padding:0 16px" id="n-add">+ Línea</button>
+          <button class="btn sm dgr" style="flex:0 0 auto;padding:0 16px" id="n-clear">Nueva nota</button>
+          <span class="sub" id="n-count"></span>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn gold" style="flex:1 1 150px" id="n-print">Imprimir ticket</button>
+          <button class="btn" style="flex:1 1 130px" id="n-save">Guardar</button>
+          <button class="btn dark" style="flex:1 1 130px" id="n-tpv">Pasar al TPV</button>
+        </div>
+
+        <h3>Teléfono de hoy</h3>
+        <div class="list" id="nhist"></div>
       </div>
     </section>
 
@@ -484,7 +536,8 @@ var DEFAULTS={
                  {n:"Queso (4)",p:1.00},{n:"Carne sobre patatas",p:1.00}] },
   fb:{ on:false, apiKey:"AIzaSyD7oZ5voHdb-lgShUToEqcOQAJTcSxhMQA", project:"star-doner-kebab-9b465",
        email:"", refresh:"" },
-  queue:[], menu:MENU, open:[], done:[], seq:1, dayKey:""
+  queue:[], menu:MENU, open:[], done:[], seq:1, dayKey:"",
+  note:null, notes:[], noteSeq:1, noteDay:""
 };
 
 var S=load();
@@ -496,7 +549,7 @@ function load(){
     d.settings=Object.assign({},DEFAULTS.settings,d.settings||{});
     d.opts=Object.assign({},DEFAULTS.opts,d.opts||{});
     d.fb=Object.assign({},DEFAULTS.fb,d.fb||{});
-    d.queue=d.queue||[];
+    d.queue=d.queue||[]; d.notes=d.notes||[]; d.noteSeq=d.noteSeq||1; d.noteDay=d.noteDay||"";
     d.menu=d.menu||MENU; d.open=d.open||[]; d.done=d.done||[]; d.seq=d.seq||1;
     return d;
   }catch(e){ return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -555,6 +608,7 @@ function go(v){
   document.querySelectorAll(".nav button").forEach(function(b){ b.classList.toggle("on", b.dataset.view===v); });
   if(v==="tables") renderTables();
   if(v==="history") renderHistory();
+  if(v==="nota") renderNote();
   if(v==="settings") renderSettings();
 }
 document.querySelectorAll(".nav button").forEach(function(b){
@@ -1574,6 +1628,7 @@ $("#b-voice").addEventListener("click",voiceModal);
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 var VOICE_OK = !!SR;
 var rec=null, recOn=false, vFinal="", vInterim="", vLines=[];
+var recMode="pedido";   /* "pedido" = modal del TPV · "nota" = pestaña Teléfono */
 /* dentro de una vista previa (iframe) el micrófono está bloqueado y no hay permiso que dar */
 function vInFrame(){ try{ return window.self!==window.top; }catch(e){ return true; } }
 
@@ -1809,7 +1864,13 @@ function parseSpeech(raw){
 }
 
 /* ---------- pantalla de dictado ---------- */
+function voiceModalFrom(txt){
+  voiceModal(); stopRec();
+  vFinal=txt; vLines=parseSpeech(txt);
+  showHeard(); drawVoice();
+}
 function voiceModal(){
+  recMode="pedido";
   if(!VOICE_OK){
     var dentro = vInFrame() ? "Estás en una vista previa, que no deja usar el micrófono. " : "";
     confirmModal("Aquí no se puede dictar",
@@ -1883,8 +1944,16 @@ function startRec(){
       vInterim="";
       for(var i=ev.resultIndex;i<ev.results.length;i++){
         var r=ev.results[i];
-        if(r.isFinal) vFinal += (vFinal?" ":"")+r[0].transcript.trim();
+        if(r.isFinal){
+          var frase=r[0].transcript.trim();
+          vFinal += (vFinal?" ":"")+frase;
+          if(recMode==="nota"&&frase) noteAddFromSpeech(frase);
+        }
         else vInterim += r[0].transcript;
+      }
+      if(recMode==="nota"){
+        if($("#n-heard")) $("#n-heard").innerHTML=esc(vFinal)+(vInterim?' <span class="dim">'+esc(vInterim)+'</span>':"");
+        return;
       }
       showHeard();
       vLines=parseSpeech(vFinal+" "+vInterim);
@@ -1905,12 +1974,226 @@ function startRec(){
 }
 function stopRec(){ try{ if(rec) rec.stop(); }catch(e){} recOn=false; paintMic(); }
 function paintMic(){
+  var nm=$("#n-mic"); if(nm) nm.classList.toggle("on",recOn&&recMode==="nota");
   var m=$("#vmic"), st=$("#vstate");
   if(m) m.classList.toggle("on",recOn);
   if(st) st.textContent = recOn ? "Escuchando… habla con naturalidad" :
     (vFinal?"Parado. Pulsa el micro para seguir":"Pulsa el micro y canta el pedido");
   var hb=$("#b-voice"); if(hb) hb.classList.toggle("on",recOn);
 }
+
+/* ============================================================
+   NOTA DE TELÉFONO
+   Suena el teléfono, el dueño repite el pedido en voz alta y
+   esto lo escribe numerado 1, 2, 3… y saca un ticket para el
+   equipo. Escribe SUS palabras, no las corrige ni las inventa.
+   ============================================================ */
+
+/* delante de un producto, estas palabras significan que sigue la misma línea */
+var NSTOP=["con","de","del","sin","sobre","mas","al","en","para","a","la","el","los","las"];
+var NPROD=["plato","platos","combinado","rollo","rollos","durum","durums","kebab","kebabs",
+  "pita","pitas","pan","falafel","falafeles","box","boxes","tapa","tapas","patata","patatas",
+  "arroz","ensalada","ensaladas","hamburguesa","hamburguesas","pizza","pizzas","nuggets",
+  "agua","aguas","coca","cocacola","fanta","aquarius","don","lipton","powerking","nestea",
+  "cerveza","cervezas","7up","refresco","refrescos","bebida","bebidas"];
+function noteWords(){
+  var set={};
+  NPROD.forEach(function(w){ set[w]=1; });
+  /* también los productos de la carta, por si añade alguno nuevo */
+  S.menu.forEach(function(c){ c.items.forEach(function(i){
+    var w=vnorm(i.name).split(" ")[0];
+    if(w.length>=3) set[w]=1;
+  }); });
+  ["carne","menu","salsa","salsas","te","mas","con","sin"].forEach(function(w){ delete set[w]; });
+  return set;
+}
+/* parte lo dictado en artículos: corta antes de un producto,
+   salvo que vaya detrás de "con", "de", "sin", "sobre"… */
+function noteSplit(text){
+  var words=String(text||"").trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return [];
+  var P=noteWords(), cuts=[];
+  for(var i=1;i<words.length;i++){
+    var w=vnorm(words[i]), prev=vnorm(words[i-1]);
+    if(!P[w] || NSTOP.indexOf(prev)>-1) continue;
+    if(P[prev]) continue;        /* "rollo kebab", "pita falafel", "coca cola": un solo producto */
+    var start=i;
+    if(VNUM[prev]!=null||prev==="y"||prev==="e") start=i-1;     /* la cantidad va con el nuevo */
+    if(start>0 && cuts[cuts.length-1]!==start) cuts.push(start);
+  }
+  var trozos=[], ini=0;
+  cuts.concat([words.length]).forEach(function(c){
+    if(c>ini) trozos.push(words.slice(ini,c).join(" "));
+    ini=c;
+  });
+  return trozos.map(noteLine).filter(function(l){ return l.texto; });
+}
+function noteLine(frase){
+  var w=frase.trim().split(/\s+/).filter(Boolean);
+  while(w.length && ["y","e",","].indexOf(vnorm(w[0]))>-1) w.shift();
+  while(w.length && ["y","e",","].indexOf(vnorm(w[w.length-1]))>-1) w.pop();
+  var qty=1;
+  if(w.length){
+    var p=vnorm(w[0]);
+    if(VNUM[p]!=null){ qty=VNUM[p]; w.shift(); }
+    else if(/^\d+$/.test(p)){ qty=Math.min(99,parseInt(p,10)); w.shift(); }
+  }
+  var t=w.join(" ").replace(/\s+,/g,",").trim();
+  return { id:uid(), qty:qty, texto: t?t.charAt(0).toUpperCase()+t.slice(1):"" };
+}
+
+/* ---------- estado ---------- */
+function noteBlank(){ return { id:uid(), name:"", phone:"", time:"", lines:[] }; }
+function noteCur(){ if(!S.note) S.note=noteBlank(); return S.note; }
+function noteNextNo(){
+  var k=dayKey();
+  if(S.noteDay!==k){ S.noteDay=k; S.noteSeq=1; }
+  return S.noteSeq++;
+}
+
+/* ---------- pantalla ---------- */
+function renderNote(){
+  var n=noteCur();
+  $("#n-name").value=n.name; $("#n-phone").value=n.phone; $("#n-time").value=n.time;
+  $("#nlist").innerHTML = n.lines.length ? n.lines.map(function(l,i){
+    return '<div class="nrow" data-i="'+i+'">'+
+      '<span class="nno">'+(i+1)+'</span>'+
+      (l.qty>1?'<span class="nq">'+l.qty+'×</span>':'')+
+      '<div class="ntx" contenteditable="true" data-ed="'+i+'">'+esc(l.texto)+'</div>'+
+      '<button class="iconbtn" data-up="'+i+'" title="Unir con el de arriba">&#8679;</button>'+
+      '<button class="iconbtn" data-del="'+i+'">&#128465;</button></div>';
+  }).join("") : '<div class="empty" style="padding:26px">Pulsa el micro y repite el pedido en voz alta.</div>';
+  $("#n-count").textContent = n.lines.length ? n.lines.length+" artículo(s)" : "";
+  var hay=n.lines.length>0;
+  ["#n-print","#n-save","#n-tpv"].forEach(function(s){ if($(s)) $(s).disabled=!hay; });
+  renderNoteHist();
+}
+function renderNoteHist(){
+  var box=$("#nhist"); if(!box) return;
+  var hoy=(S.notes||[]).filter(function(x){ return x.day===dayKey(); });
+  box.innerHTML = hoy.length ? hoy.map(function(x){
+    return '<div class="hrow" data-note="'+x.id+'"><span class="no">T'+x.no+'</span>'+
+      '<div class="a"><div>'+esc(x.name||"Sin nombre")+(x.phone?' · '+esc(x.phone):"")+'</div>'+
+      '<div class="sub">'+new Date(x.at).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})+
+      (x.time?' · recoge '+esc(x.time):"")+' · '+x.lines.length+' art.</div></div>'+
+      '<button class="iconbtn" data-nprint="'+x.id+'">&#128424;</button></div>';
+  }).join("") : '<div class="empty" style="padding:16px">Ningún pedido por teléfono hoy.</div>';
+}
+function noteText(n, no){
+  var W=40,L=[];
+  function ctr(t){ var p=Math.max(0,Math.floor((W-t.length)/2)); return new Array(p+1).join(" ")+t; }
+  function wrap(pre,txt,sangria){
+    var out=[],linea=pre, max=W;
+    txt.split(/\s+/).forEach(function(w){
+      if((linea+" "+w).length>max){ out.push(linea); linea=sangria+w; }
+      else linea = linea===pre&&pre.slice(-1)!==" " ? linea+" "+w : linea+(linea.slice(-1)===" "?"":" ")+w;
+    });
+    if(linea.trim()) out.push(linea);
+    return out;
+  }
+  L.push(ctr("* "+(S.settings.name||"Star Doner Kebab")+" *"));
+  L.push(ctr("PEDIDO POR TELÉFONO"));
+  L.push("");
+  L.push(ctr("Nº T"+no));
+  L.push("");
+  L.push(new Date(n.at||Date.now()).toLocaleString("es-ES"));
+  if(n.name)  L.push("Cliente: "+n.name);
+  if(n.phone) L.push("Teléfono: "+n.phone);
+  if(n.time)  L.push("HORA DE RECOGIDA: "+n.time);
+  L.push(new Array(W+1).join("-"));
+  n.lines.forEach(function(l,i){
+    var cab=(i+1)+". "+(l.qty>1?l.qty+"x ":"");
+    wrap(cab, l.texto, "   ").forEach(function(x){ L.push(x); });
+  });
+  L.push(new Array(W+1).join("-"));
+  L.push(ctr("Tomado por teléfono"));
+  return L.join("\n");
+}
+
+/* ---------- acciones ---------- */
+function noteAddFromSpeech(txt){
+  var n=noteCur();
+  noteSplit(txt).forEach(function(l){ n.lines.push(l); });
+  save(); renderNote();
+}
+$("#n-mic").addEventListener("click",function(){
+  if(recOn&&recMode==="nota"){ stopRec(); return; }
+  if(!VOICE_OK){
+    confirmModal("Aquí no se puede dictar",
+      (vInFrame()?"Estás en una vista previa, que no deja usar el micrófono. ":"")+
+      "Abre el TPV desde su dirección web en Chrome y dale a Permitir cuando pida el micrófono.",
+      function(){});
+    return;
+  }
+  recMode="nota"; vFinal=""; vInterim="";
+  $("#n-heard").textContent="";
+  startRec();
+});
+$("#nlist").addEventListener("click",function(e){
+  var n=noteCur(), b;
+  if((b=e.target.closest("[data-del]"))){ n.lines.splice(+b.dataset.del,1); save(); renderNote(); return; }
+  if((b=e.target.closest("[data-up]"))){
+    var i=+b.dataset.up;
+    if(i>0){ n.lines[i-1].texto=(n.lines[i-1].texto+" "+n.lines[i].texto).trim();
+             n.lines.splice(i,1); save(); renderNote(); }
+  }
+});
+$("#nlist").addEventListener("blur",function(e){
+  var el=e.target.closest("[data-ed]"); if(!el) return;
+  var n=noteCur(), i=+el.dataset.ed;
+  if(n.lines[i]){ n.lines[i].texto=el.textContent.trim(); save(); }
+},true);
+["#n-name","#n-phone","#n-time"].forEach(function(s){
+  $(s).addEventListener("change",function(){
+    var n=noteCur();
+    n.name=$("#n-name").value.trim(); n.phone=$("#n-phone").value.trim(); n.time=$("#n-time").value.trim();
+    save();
+  });
+});
+$("#n-add").addEventListener("click",function(){
+  noteCur().lines.push({id:uid(),qty:1,texto:""}); save(); renderNote();
+  var last=document.querySelector("#nlist .nrow:last-child [data-ed]"); if(last) last.focus();
+});
+$("#n-clear").addEventListener("click",function(){
+  if(!noteCur().lines.length){ S.note=noteBlank(); save(); renderNote(); return; }
+  confirmModal("¿Empezar de nuevo?","Se borra la nota que tienes en pantalla.",function(){
+    stopRec(); S.note=noteBlank(); vFinal=""; $("#n-heard").textContent=""; save(); renderNote();
+  });
+});
+function noteSaveCurrent(){
+  var n=noteCur(); if(!n.lines.length) return null;
+  n.name=$("#n-name").value.trim(); n.phone=$("#n-phone").value.trim(); n.time=$("#n-time").value.trim();
+  var guardada=JSON.parse(JSON.stringify(n));
+  guardada.no=noteNextNo(); guardada.day=dayKey(); guardada.at=Date.now();
+  S.notes=S.notes||[]; S.notes.unshift(guardada);
+  S.note=noteBlank(); vFinal=""; save();
+  if($("#n-heard")) $("#n-heard").textContent="";
+  renderNote();
+  return guardada;
+}
+$("#n-print").addEventListener("click",function(){
+  stopRec();
+  var g=noteSaveCurrent(); if(!g) return;
+  printText(noteText(g,g.no)); toast("Ticket T"+g.no+" impreso y guardado");
+});
+$("#n-save").addEventListener("click",function(){
+  stopRec();
+  var g=noteSaveCurrent(); if(!g) return;
+  toast("Guardado como T"+g.no);
+});
+$("#nhist").addEventListener("click",function(e){
+  var b=e.target.closest("[data-nprint]"); if(!b) return;
+  var x=(S.notes||[]).filter(function(y){ return y.id===b.dataset.nprint; })[0];
+  if(x){ printText(noteText(x,x.no)); toast("Reimprimiendo T"+x.no); }
+});
+$("#n-tpv").addEventListener("click",function(){
+  stopRec();
+  var n=noteCur(); if(!n.lines.length) return;
+  var txt=n.lines.map(function(l){ return (l.qty>1?l.qty+" ":"un ")+l.texto; }).join(" y ");
+  vFinal=txt; vLines=parseSpeech(txt);
+  if(!vLines.length){ toast("No he reconocido productos de la carta"); return; }
+  voiceModalFrom(txt);
+});
 
 /* ---------- arranque ---------- */
 function boot(){
