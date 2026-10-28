@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Notas">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#111111">
+<title>Notas de pedido</title>
+<style>
+:root{--black:#111;--line:#e4e4e7;--ink:#18181b;--mute:#71717a;--gold:#EF9F27;--red:#E24B4A;--green:#1D9E75}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%;margin:0;position:fixed;width:100%;overflow:hidden;-webkit-text-size-adjust:100%;
+  overscroll-behavior:none}
+body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--ink);background:#f4f4f5;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-appearance:none;appearance:none}
+input{font:inherit;font-size:16px;-webkit-appearance:none;appearance:none}
+.hide{display:none!important}
+
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
+header{display:flex;align-items:center;gap:10px;background:var(--black);color:#fff;flex:0 0 auto;
+  border-bottom:2px solid var(--gold);
+  padding:calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 10px
+          calc(14px + env(safe-area-inset-left))}
+header .t{font-weight:800;font-size:17px;flex:1}
+header .t i{color:var(--gold);font-style:normal}
+.clock{color:#a1a1aa;font-size:14px;font-variant-numeric:tabular-nums}
+
+main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:14px calc(14px + env(safe-area-inset-right)) 14px calc(14px + env(safe-area-inset-left))}
+
+.mic{width:100%;min-height:92px;border-radius:20px;background:var(--gold);color:#111;font-weight:900;
+  font-size:21px;display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;
+  box-shadow:0 6px 18px rgba(239,159,39,.35)}
+.mic .dot{width:16px;height:16px;border-radius:50%;background:#111}
+.mic.on{background:var(--red);color:#fff;box-shadow:0 6px 18px rgba(226,75,74,.45)}
+.mic.on .dot{background:#fff;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+.heard{min-height:50px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  font-size:16px;color:var(--mute);margin-bottom:12px}
+.heard b{color:var(--ink);font-weight:600}
+.heard .now{color:var(--gold);font-style:italic}
+
+.who{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:#fff;
+  min-height:50px;margin-bottom:12px}
+
+.list{background:#fff;border-radius:16px;padding:4px 12px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.row{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid #f4f4f5}
+.row:last-child{border-bottom:0}
+.n{flex:0 0 auto;min-width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:10px;background:var(--black);color:var(--gold);font-weight:900;font-size:16px}
+.q{flex:0 0 auto;height:34px;display:inline-flex;align-items:center;padding:0 10px;border-radius:10px;
+  background:var(--gold);color:#111;font-weight:900;font-size:15px}
+.tx{flex:1;min-width:0;padding:5px 7px;border-radius:9px;outline:none;word-break:break-word;
+  -webkit-user-select:text;user-select:text}
+.tx:focus{background:#fffbf3;box-shadow:0 0 0 2px var(--gold)}
+.ib{flex:0 0 auto;width:42px;height:42px;border-radius:11px;background:#f4f4f5;font-size:17px;
+  display:flex;align-items:center;justify-content:center}
+.vacio{padding:34px 16px;text-align:center;color:var(--mute)}
+
+.acts{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.b{flex:1 1 130px;min-height:58px;border-radius:14px;font-weight:800;font-size:17px;
+  display:flex;align-items:center;justify-content:center;background:#e4e4e7;color:var(--ink)}
+.b.pri{background:var(--green);color:#fff}
+.b.dark{background:var(--black);color:#fff}
+.b.sm{flex:0 0 auto;min-height:46px;font-size:15px;padding:0 16px}
+.b[disabled]{opacity:.38}
+
+.link{display:inline-block;margin:6px 2px 10px;color:var(--mute);font-size:15px;font-weight:700;
+  text-decoration:underline}
+.old{background:#fff;border-radius:14px;overflow:hidden;margin-bottom:16px}
+.oldrow{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #f4f4f5}
+.oldrow:last-child{border-bottom:0}
+.oldrow .a{flex:1;min-width:0;font-size:15px}
+.oldrow .s{font-size:13px;color:var(--mute)}
+.warn{background:var(--red);color:#fff;padding:11px 14px;font-size:14px;text-align:center}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--black);
+  color:var(--gold);padding:13px 22px;border-radius:999px;font-weight:800;z-index:99}
+@media print{
+  body{background:#fff;position:static;overflow:visible}
+  #app,.toast{display:none!important}
+  #imp{display:block!important;font:13px/1.5 "Courier New",monospace;white-space:pre-wrap}
+}
+#imp{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="t"><i>★</i> Notas de pedido</div>
+    <div class="clock" id="clock"></div>
+  </header>
+  <div class="warn hide" id="warn">Este navegador no está guardando. Ábrelo desde su dirección web.</div>
+  <main>
+    <button class="mic" id="mic"><span class="dot"></span><span id="miclbl">Pulsa y habla</span></button>
+    <div class="heard" id="heard">Repite en voz alta lo que te pide el cliente.</div>
+    <input class="who" id="who" placeholder="Nombre o teléfono (opcional)">
+
+    <div class="list" id="list"></div>
+
+    <div class="acts">
+      <button class="b sm" id="add">+ Línea</button>
+      <button class="b sm" id="nueva">Empezar de nuevo</button>
+    </div>
+    <div class="acts">
+      <button class="b pri" id="imprimir" disabled>Imprimir lista</button>
+    </div>
+
+    <a class="link" id="verold">Ver listas de hoy</a>
+    <div class="old hide" id="old"></div>
+  </main>
+</div>
+<div id="imp"></div>
+
+<script>
+"use strict";
+var $=function(s){ return document.querySelector(s); };
+var mem={}, STORAGE_OK=(function(){
+  try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; }
+})();
+var store={
+  get:function(k){ try{ return localStorage.getItem(k); }catch(e){ return k in mem?mem[k]:null; } },
+  set:function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ STORAGE_OK=false; mem[k]=v; pintarAviso(); } }
+};
+function pintarAviso(){ $("#warn").classList.toggle("hide",STORAGE_OK); }
+
+var S = (function(){
+  try{
+    var d=JSON.parse(store.get("notas_pedido_v1")||"{}");
+    return { actual:d.actual||{who:"",lines:[]}, viejas:d.viejas||[], seq:d.seq||1, dia:d.dia||"" };
+  }catch(e){ return { actual:{who:"",lines:[]}, viejas:[], seq:1, dia:"" }; }
+})();
+function save(){ store.set("notas_pedido_v1", JSON.stringify(S)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(m){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]; }); }
+function toast(t){ var e=document.createElement("div"); e.className="toast"; e.textContent=t;
+  document.body.appendChild(e); setTimeout(function(){ e.remove(); },1800); }
+function dia(ts){ var d=ts?new Date(ts):new Date(), z=function(n){ return (n<10?"0":"")+n; };
+  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
+
+/* ---------- partir lo dictado en artículos ---------- */
+function norm(s){ return String(s||"").toLowerCase()
+  .normalize("NFD").replace(/[̀-ͯ]/g,"")
+  .replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim(); }
+var NUM={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,
+         diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,veinte:20};
+/* delante de un producto, estas palabras dicen que sigue la misma línea */
+var STOP=["con","de","del","sin","sobre","mas","al","en","para","a","la","el","los","las","y","e"];
+var SIGUE=["con","de","del","sin","sobre","mas","al","en","para","a","la","el","los","las"];
+var PROD=("plato platos combinado combinados rollo rollos durum durums kebab kebabs pita pitas pan "+
+ "panes falafel falafeles box boxes tapa tapas patata patatas arroz ensalada ensaladas hamburguesa "+
+ "hamburguesas pizza pizzas nuggets durum menu agua aguas coca cocacola fanta aquarius don lipton "+
+ "powerking nestea cerveza cervezas refresco refrescos bebida bebidas postre postres baklava helado "+
+ "pollo ternera mixto").split(" ");
+/* "pollo/ternera/mixto" solo cortan si van con cantidad delante: "dos pollos" */
+var SOLO_CON_NUM=["pollo","ternera","mixto","menu"];
+function esProducto(w){ return PROD.indexOf(w)>-1; }
+
+function partir(texto){
+  var w=String(texto||"").trim().split(/\s+/).filter(Boolean);
+  if(!w.length) return [];
+  var cortes=[];
+  for(var i=1;i<w.length;i++){
+    var a=norm(w[i]), prev=norm(w[i-1]);
+    /* "y uno de ternera", "y dos de pollo" → artículo nuevo aunque no repita el producto */
+    if(NUM[a]!=null && (prev==="y"||prev==="e") && i-1>0 && cortes[cortes.length-1]!==i-1){
+      cortes.push(i-1); continue;
+    }
+    if(!esProducto(a)) continue;
+    if(SIGUE.indexOf(prev)>-1) continue;          /* "con arroz", "sobre patatas" */
+    if(esProducto(prev)) continue;                /* "rollo kebab", "coca cola" */
+    if(SOLO_CON_NUM.indexOf(a)>-1 && NUM[prev]==null) continue;
+    var ini=i;
+    if(NUM[prev]!=null||prev==="y"||prev==="e") ini=i-1;   /* la cantidad va con el nuevo */
+    if(ini>0 && cortes[cortes.length-1]!==ini) cortes.push(ini);
+  }
+  var trozos=[], desde=0;
+  cortes.sort(function(x,y){ return x-y; });
+  cortes.concat([w.length]).forEach(function(c){
+    if(c>desde) trozos.push(w.slice(desde,c).join(" "));
+    desde=c;
+  });
+  /* un trozo sin ningún producto ("dame", "a ver") no es un artículo: se pega al siguiente */
+  for(var k=0;k<trozos.length;k++){
+    var tiene=trozos[k].split(/\s+/).some(function(x){ return esProducto(norm(x)); });
+    if(tiene) continue;
+    if(k+1<trozos.length){ trozos[k+1]=trozos[k]+" "+trozos[k+1]; trozos.splice(k,1); k--; }
+    else if(k>0){ trozos[k-1]=trozos[k-1]+" "+trozos[k]; trozos.splice(k,1); k--; }
+  }
+  return trozos.map(linea).filter(function(l){ return l.texto; });
+}
+var RELLENO=["dame","ponme","pon","quiero","queria","querria","pones","deme","pongame",
+  "pues","vale","mira","oye","luego","tambien","despues","otro","otra","y","e","que","sera",
+  "a","ver","hola","buenas","porfavor","por","favor","gracias","tambien"];
+var FINAL=["por","favor","gracias","porfavor","y","e"];
+function linea(frase){
+  var w=frase.trim().split(/\s+/).filter(Boolean);
+  while(w.length && RELLENO.indexOf(norm(w[0]))>-1) w.shift();
+  while(w.length && FINAL.indexOf(norm(w[w.length-1]))>-1) w.pop();
+  var q=1;
+  if(w.length){
+    var p=norm(w[0]);
+    if(NUM[p]!=null){ q=NUM[p]; w.shift(); }
+    else if(/^\d+$/.test(p)){ q=Math.min(99,parseInt(p,10)); w.shift(); }
+  }
+  var t=w.join(" ").trim();
+  return { id:uid(), q:q, texto: t?t.charAt(0).toUpperCase()+t.slice(1):"" };
+}
+
+/* ---------- pantalla ---------- */
+function pintar(){
+  var n=S.actual;
+  $("#list").innerHTML = n.lines.length ? n.lines.map(function(l,i){
+    return '<div class="row" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
+      (l.q>1?'<span class="q">'+l.q+'×</span>':'')+
+      '<div class="tx" contenteditable="true" data-ed="'+i+'">'+esc(l.texto)+'</div>'+
+      '<button class="ib" data-up="'+i+'" title="Unir con la de arriba">&#8679;</button>'+
+      '<button class="ib" data-del="'+i+'">&#128465;</button></div>';
+  }).join("") : '<div class="vacio">Todavía no hay nada.<br>Pulsa el botón y habla.</div>';
+  $("#imprimir").disabled = !n.lines.length;
+  pintarViejas();
+}
+function pintarViejas(){
+  var box=$("#old"); if(box.classList.contains("hide")) return;
+  var hoy=S.viejas.filter(function(v){ return v.dia===dia(); });
+  box.innerHTML = hoy.length ? hoy.map(function(v){
+    return '<div class="oldrow"><span class="n">'+v.no+'</span>'+
+      '<div class="a">'+esc(v.who||"Sin nombre")+
+      '<div class="s">'+new Date(v.at).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})+
+      ' · '+v.lines.length+' artículos</div></div>'+
+      '<button class="ib" data-rep="'+v.id+'">&#128424;</button></div>';
+  }).join("") : '<div class="vacio">Ninguna lista hoy.</div>';
+}
+function textoImpresion(v){
+  var W=40,L=[];
+  function ctr(t){ var p=Math.max(0,Math.floor((W-t.length)/2)); return new Array(p+1).join(" ")+t; }
+  L.push(ctr("PEDIDO POR TELÉFONO"));
+  L.push("");
+  L.push(ctr("Nº "+v.no));
+  L.push("");
+  L.push(new Date(v.at).toLocaleString("es-ES"));
+  if(v.who) L.push(v.who);
+  L.push(new Array(W+1).join("-"));
+  v.lines.forEach(function(l,i){
+    var cab=(i+1)+". "+(l.q>1?l.q+"x ":""), linea=cab, sang="   ";
+    l.texto.split(/\s+/).forEach(function(p){
+      if((linea+" "+p).length>W){ L.push(linea); linea=sang+p; }
+      else linea += (linea===cab?"":" ")+p;
+    });
+    if(linea.trim()) L.push(linea);
+  });
+  L.push(new Array(W+1).join("-"));
+  return L.join("\n");
+}
+function imprimir(t){ $("#imp").textContent=t; window.print(); }
+
+/* ---------- acciones ---------- */
+$("#list").addEventListener("click",function(e){
+  var b, n=S.actual;
+  if((b=e.target.closest("[data-del]"))){ n.lines.splice(+b.dataset.del,1); save(); pintar(); return; }
+  if((b=e.target.closest("[data-up]"))){
+    var i=+b.dataset.up;
+    if(i>0){ n.lines[i-1].texto=(n.lines[i-1].texto+" "+n.lines[i].texto).trim();
+             n.lines.splice(i,1); save(); pintar(); }
+  }
+});
+$("#list").addEventListener("blur",function(e){
+  var el=e.target.closest("[data-ed]"); if(!el) return;
+  var i=+el.dataset.ed;
+  if(S.actual.lines[i]){ S.actual.lines[i].texto=el.textContent.trim(); save(); }
+},true);
+$("#who").addEventListener("change",function(){ S.actual.who=$("#who").value.trim(); save(); });
+$("#add").addEventListener("click",function(){
+  S.actual.lines.push({id:uid(),q:1,texto:""}); save(); pintar();
+  var el=document.querySelector(".row:last-child [data-ed]"); if(el) el.focus();
+});
+$("#nueva").addEventListener("click",function(){
+  parar(); S.actual={who:"",lines:[]}; oido=""; $("#who").value="";
+  $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
+  save(); pintar();
+});
+$("#imprimir").addEventListener("click",function(){
+  parar();
+  var n=S.actual; if(!n.lines.length) return;
+  if(S.dia!==dia()){ S.dia=dia(); S.seq=1; }
+  var v={ id:uid(), no:S.seq++, dia:dia(), at:Date.now(),
+          who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(n.lines)) };
+  S.viejas.unshift(v); if(S.viejas.length>200) S.viejas.length=200;
+  S.actual={who:"",lines:[]}; oido=""; $("#who").value="";
+  $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
+  save(); pintar();
+  imprimir(textoImpresion(v)); toast("Lista Nº "+v.no+" impresa");
+});
+$("#verold").addEventListener("click",function(){
+  var box=$("#old"), ver=box.classList.contains("hide");
+  box.classList.toggle("hide",!ver);
+  $("#verold").textContent = ver ? "Ocultar listas" : "Ver listas de hoy";
+  pintarViejas();
+});
+$("#old").addEventListener("click",function(e){
+  var b=e.target.closest("[data-rep]"); if(!b) return;
+  var v=S.viejas.filter(function(x){ return x.id===b.dataset.rep; })[0];
+  if(v) imprimir(textoImpresion(v));
+});
+
+/* ---------- escuchar ---------- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+var rec=null, oyendo=false, oido="", ahora="";
+function enMarco(){ try{ return window.self!==window.top; }catch(e){ return true; } }
+function pintarMic(){
+  $("#mic").classList.toggle("on",oyendo);
+  $("#miclbl").textContent = oyendo ? "Escuchando… toca para parar" : "Pulsa y habla";
+}
+function pintarOido(){
+  $("#heard").innerHTML = (oido?'<b>'+esc(oido)+'</b>':"")+
+    (ahora?' <span class="now">'+esc(ahora)+'</span>':"") ||
+    "Repite en voz alta lo que te pide el cliente.";
+}
+function arrancar(){
+  if(oyendo) return;
+  if(!SR){
+    $("#heard").textContent = enMarco()
+      ? "Esta vista previa no deja usar el micrófono. Ábrelo desde su dirección web."
+      : "Este navegador no sabe escuchar. Usa Chrome en Android.";
+    return;
+  }
+  try{
+    rec=new SR(); rec.lang="es-ES"; rec.interimResults=true; rec.continuous=true;
+    rec.onresult=function(ev){
+      ahora="";
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        var r=ev.results[i];
+        if(r.isFinal){
+          var f=r[0].transcript.trim();
+          if(f){
+            oido += (oido?" ":"")+f;
+            partir(f).forEach(function(l){ S.actual.lines.push(l); });
+            save(); pintar();
+          }
+        } else ahora += r[0].transcript;
+      }
+      pintarOido();
+    };
+    rec.onerror=function(ev){
+      oyendo=false; pintarMic();
+      $("#heard").textContent =
+        ev.error==="not-allowed" ? (enMarco()
+          ? "Esta vista previa no deja usar el micrófono. Ábrelo desde su dirección web."
+          : "Falta el permiso del micrófono: dale a Permitir cuando el navegador lo pregunte.") :
+        ev.error==="network" ? "Sin internet: escuchar necesita conexión." :
+        ev.error==="no-speech" ? "No he oído nada. Prueba otra vez." : "No se pudo escuchar.";
+    };
+    rec.onend=function(){
+      if(oyendo){ try{ rec.start(); return; }catch(e){} }   /* sigue escuchando entre frases */
+      oyendo=false; pintarMic();
+    };
+    rec.start(); oyendo=true; pintarMic();
+  }catch(e){ oyendo=false; pintarMic(); }
+}
+function parar(){ oyendo=false; try{ if(rec) rec.stop(); }catch(e){} pintarMic(); }
+$("#mic").addEventListener("click",function(){ oyendo?parar():arrancar(); });
+
+/* ---------- arranque ---------- */
+var wake=null;
+function despierta(){
+  if(!navigator.wakeLock||document.hidden||wake) return;
+  navigator.wakeLock.request("screen").then(function(l){
+    wake=l; l.addEventListener("release",function(){ wake=null; });
+  }).catch(function(){});
+}
+function reloj(){ $("#clock").textContent=new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); }
+reloj(); setInterval(reloj,20000);
+$("#who").value=S.actual.who||"";
+pintarAviso(); pintarMic(); pintar(); despierta();
+document.addEventListener("touchstart",function(){},{passive:true});
+window.addEventListener("beforeunload",save);
+document.addEventListener("visibilitychange",function(){ document.hidden?save():despierta(); });
+</script>
+</body>
+</html>
