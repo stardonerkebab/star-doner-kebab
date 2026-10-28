@@ -46,8 +46,12 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
 .heard b{color:var(--ink);font-weight:600}
 .heard .now{color:var(--gold);font-style:italic}
 
-.who{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:#fff;
-  min-height:50px;margin-bottom:12px}
+.whorow{display:flex;gap:9px;margin-bottom:12px}
+.who{flex:1;min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:#fff;
+  min-height:52px}
+.micwho{flex:0 0 auto;width:62px;border-radius:14px;background:#e4e4e7;font-size:21px;
+  display:flex;align-items:center;justify-content:center}
+.micwho.on{background:var(--red);color:#fff}
 
 .list{background:#fff;border-radius:16px;padding:4px 12px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .row{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid #f4f4f5}
@@ -105,8 +109,12 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
     <div class="heard" id="heard">Repite en voz alta lo que te pide el cliente.</div>
     <p class="ayuda">Todo lo que digas va a la línea marcada. Al terminar un pedido pulsa
     <b>Línea terminada</b>. Para añadir algo a una línea de antes, tócala y sigue hablando.
-    El lápiz ✎ es para escribir a mano y la papelera 🗑 borra esa línea sola.</p>
-    <input class="who" id="who" placeholder="Nombre o teléfono (opcional)">
+    El lápiz ✎ es para escribir a mano y la papelera 🗑 borra esa línea sola.
+    Para el nombre o el teléfono, toca el micro 🎤 de al lado y dilo; se escribe tal cual.</p>
+    <div class="whorow">
+      <input class="who" id="who" placeholder="Nombre o teléfono (opcional)">
+      <button class="micwho" id="micwho" title="Decir el nombre o el teléfono">&#127908;</button>
+    </div>
 
     <div class="list" id="list"></div>
 
@@ -434,7 +442,7 @@ $("#list").addEventListener("click",function(e){
       curId=li.id; curTxt=li.texto;
       document.querySelectorAll(".row").forEach(function(r){ r.classList.remove("act"); });
       b.closest(".row").classList.add("act");
-      pintarOido();
+      ponDestino("linea");
     }
     return;
   }
@@ -457,12 +465,21 @@ $("#list").addEventListener("blur",function(e){
   }
 },true);
 $("#who").addEventListener("change",function(){ S.actual.who=$("#who").value.trim(); save(); });
+$("#who").addEventListener("focus",function(){ ponDestino("nombre"); });
+/* micro pequeño: lo que diga va al nombre o al teléfono, sin corregir nada */
+$("#micwho").addEventListener("click",function(){
+  if(destino==="nombre"){ ponDestino("linea"); return; }
+  ponDestino("nombre");
+  if(!oyendo) arrancar();
+});
 $("#add").addEventListener("click",function(){
+  ponDestino("linea");
   nuevaLinea();
   pintarOido();
 });
 $("#nueva").addEventListener("click",function(){
   parar(); S.actual={who:"",lines:[]}; oido=""; curId=null; curTxt=""; $("#who").value="";
+  destino="linea"; $("#micwho").classList.remove("on");
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
 });
@@ -476,6 +493,7 @@ $("#imprimir").addEventListener("click",function(){
           who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(utiles)) };
   S.viejas.unshift(v); if(S.viejas.length>200) S.viejas.length=200;
   S.actual={who:"",lines:[]}; oido=""; curId=null; curTxt=""; $("#who").value="";
+  destino="linea"; $("#micwho").classList.remove("on");
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
   imprimir(textoImpresion(v)); toast("Lista Nº "+v.no+" impresa");
@@ -525,7 +543,37 @@ function pintarMic(){
   $("#mic").classList.toggle("on",oyendo);
   $("#miclbl").textContent = oyendo ? "Escuchando… toca para parar" : "Pulsa y habla";
 }
+/* a dónde va lo que se dicta: "linea" (el pedido) o "nombre" (quién llama) */
+var destino="linea";
+function ponDestino(d){
+  destino=d;
+  $("#micwho").classList.toggle("on", d==="nombre");
+  if(d==="nombre" && document.activeElement!==$("#who")) $("#who").focus();
+  pintarOido();
+}
+/* en el nombre no se corrige nada; los números se pegan para que salga el teléfono */
+function nombreOido(viejo,f){
+  var p=String(f||"").trim().split(/\s+/).filter(Boolean), out=[];
+  p.forEach(function(x){
+    var k=norm(x), d=null;
+    if(/^\d+$/.test(k)) d=k;
+    else if(k==="cero") d="0";
+    else if(NUM[k]!=null) d=String(NUM[k]);
+    if(d!==null && out.length && /^\d+$/.test(out[out.length-1])) out[out.length-1]+=d;
+    else if(d!==null) out.push(d);
+    else out.push(x.charAt(0).toUpperCase()+x.slice(1));
+  });
+  var t=out.join(" ").replace(/\s+/g," ").trim();
+  return ((viejo||"")+(viejo&&t?" ":"")+t).trim();
+}
 function pintarOido(){
+  if(destino==="nombre"){
+    var v=$("#who").value;
+    $("#heard").innerHTML='<span class="now">Nombre:</span> '+(v?'<b>'+esc(v)+'</b>':"")+
+      (ahora?' <span class="now">'+esc(ahora)+'</span>':"")+
+      (v||ahora?"":"<i>di el nombre o el teléfono</i>");
+    return;
+  }
   var n=S.actual.lines.length, act=lineaActual();
   var cab = act ? '<span class="now">Línea '+(S.actual.lines.indexOf(act)+1)+':</span> ' : "";
   var cuerpo = (curTxt?'<b>'+marca(curTxt)+'</b>':"")+(ahora?' <span class="now">'+esc(ahora)+'</span>':"");
@@ -548,7 +596,11 @@ function arrancar(){
         var r=ev.results[i];
         if(r.isFinal){
           var f=r[0].transcript.trim();
-          if(f){
+          if(f && destino==="nombre"){
+            $("#who").value = nombreOido($("#who").value, f);
+            S.actual.who = $("#who").value;
+            save();
+          } else if(f){
             curTxt = corrige(curTxt+(curTxt?" ":"")+f);
             var habia=S.actual.lines.length;
             vuelcaEnLinea();
@@ -576,7 +628,10 @@ function arrancar(){
   }catch(e){ oyendo=false; pintarMic(); }
 }
 function parar(){ oyendo=false; try{ if(rec) rec.stop(); }catch(e){} pintarMic(); }
-$("#mic").addEventListener("click",function(){ oyendo?parar():arrancar(); });
+$("#mic").addEventListener("click",function(){
+  if(oyendo){ parar(); return; }
+  ponDestino("linea"); arrancar();
+});
 
 /* ---------- arranque ---------- */
 var wake=null;
