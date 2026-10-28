@@ -281,7 +281,7 @@ $("#add").addEventListener("click",function(){
   var el=document.querySelector(".row:last-child [data-ed]"); if(el) el.focus();
 });
 $("#nueva").addEventListener("click",function(){
-  parar(); S.actual={who:"",lines:[]}; oido=""; $("#who").value="";
+  parar(); S.actual={who:"",lines:[]}; oido=""; segIni=0; $("#who").value="";
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
 });
@@ -292,7 +292,7 @@ $("#imprimir").addEventListener("click",function(){
   var v={ id:uid(), no:S.seq++, dia:dia(), at:Date.now(),
           who:$("#who").value.trim(), lines:JSON.parse(JSON.stringify(n.lines)) };
   S.viejas.unshift(v); if(S.viejas.length>200) S.viejas.length=200;
-  S.actual={who:"",lines:[]}; oido=""; $("#who").value="";
+  S.actual={who:"",lines:[]}; oido=""; segIni=0; $("#who").value="";
   $("#heard").textContent="Repite en voz alta lo que te pide el cliente.";
   save(); pintar();
   imprimir(textoImpresion(v)); toast("Lista Nº "+v.no+" impresa");
@@ -312,6 +312,9 @@ $("#old").addEventListener("click",function(e){
 /* ---------- escuchar ---------- */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 var rec=null, oyendo=false, oido="", ahora="";
+/* dónde empezó esta tanda de escucha: al hablar se rehace SOLO desde aquí,
+   así una pausa en medio de la frase no parte el artículo en dos */
+var segIni=0;
 function enMarco(){ try{ return window.self!==window.top; }catch(e){ return true; } }
 function pintarMic(){
   $("#mic").classList.toggle("on",oyendo);
@@ -340,7 +343,9 @@ function arrancar(){
           var f=r[0].transcript.trim();
           if(f){
             oido += (oido?" ":"")+f;
-            partir(f).forEach(function(l){ S.actual.lines.push(l); });
+            /* se vuelve a partir TODO lo dicho en esta tanda, no solo la última frase */
+            if(S.actual.lines.length>segIni) S.actual.lines.length=segIni;
+            partir(oido).forEach(function(l){ S.actual.lines.push(l); });
             save(); pintar();
           }
         } else ahora += r[0].transcript;
@@ -360,6 +365,7 @@ function arrancar(){
       if(oyendo){ try{ rec.start(); return; }catch(e){} }   /* sigue escuchando entre frases */
       oyendo=false; pintarMic();
     };
+    segIni=S.actual.lines.length; oido="";   /* tanda nueva: no toca lo ya escrito */
     rec.start(); oyendo=true; pintarMic();
   }catch(e){ oyendo=false; pintarMic(); }
 }
